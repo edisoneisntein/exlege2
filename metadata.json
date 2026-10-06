@@ -1,0 +1,11 @@
+{
+  "name": "Remix LAWYER AI v 2.0",
+  "description": "copia 1 EX LEGE 6 Se hicieron cambios en paralelización de tareas Streaming de respuesta en el chat Refactorización de contextos Y selección numeración de error en página\n",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "prompt": "",
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

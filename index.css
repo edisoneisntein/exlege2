@@ -1,0 +1,122 @@
+@import "tailwindcss";
+
+@layer utilities {
+  .font-cinzel {
+    font-family: 'Cinzel', serif;
+  }
+  .font-cinzel-decorative {
+    font-family: 'Cinzel Decorative', serif;
+  }
+  .font-garamond {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+  }
+
+  @keyframes fadeInSlow {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes goldShimmer {
+    0%, 100% {
+      filter: drop-shadow(0 0 15px rgba(212, 175, 55, 0.4));
+    }
+    50% {
+      filter: drop-shadow(0 0 35px rgba(245, 215, 110, 0.75));
+    }
+  }
+
+  @keyframes floatSlow {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-5px);
+    }
+  }
+
+  .animate-gold-shimmer {
+    animation: goldShimmer 4s ease-in-out infinite;
+  }
+
+  .animate-float-slow {
+    animation: floatSlow 5s ease-in-out infinite;
+  }
+
+  /* Supreme Gold Metallic Text Gradient */
+  .gold-text-gradient {
+    background: linear-gradient(135deg, #FFF6D5 0%, #DFBA73 30%, #C5A059 60%, #F5E298 85%, #9E7D3B 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .gold-text-bright {
+    background: linear-gradient(135deg, #FFFFFF 0%, #FDF3C7 40%, #EAB308 80%, #CA8A04 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* Ornate Gold Filigree Border Card */
+  .court-gold-frame {
+    background: radial-gradient(circle at 50% 0%, rgba(58, 20, 75, 0.4) 0%, rgba(14, 8, 22, 0.95) 75%);
+    border: 1.5px solid #C5A059;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.9), 0 0 25px rgba(197, 160, 89, 0.2), inset 0 0 30px rgba(78, 29, 100, 0.25);
+  }
+
+  .court-gold-frame-active {
+    background: radial-gradient(circle at 50% 0%, rgba(88, 28, 118, 0.5) 0%, rgba(20, 10, 32, 0.98) 75%);
+    border: 2px solid #E6CA65;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.95), 0 0 35px rgba(230, 202, 101, 0.4), inset 0 0 40px rgba(120, 38, 160, 0.35);
+  }
+
+  .court-panel-velvet {
+    background: radial-gradient(circle at 50% 30%, rgba(38, 16, 52, 0.75) 0%, rgba(10, 6, 15, 0.96) 90%);
+    border: 1px solid rgba(197, 160, 89, 0.4);
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.95), 0 0 30px rgba(197, 160, 89, 0.15);
+  }
+
+  .gold-beveled-border {
+    border-image: linear-gradient(to bottom, #FFE898, #C5A059, #6E531C) 1;
+  }
+}
+
+/* Base SVG safety rule */
+svg {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* Custom Court scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #09050e;
+}
+::-webkit-scrollbar-thumb {
+  background: #341c48;
+  border-radius: 9999px;
+  border: 1px solid rgba(197, 160, 89, 0.3);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #C5A059;
+}
+
+

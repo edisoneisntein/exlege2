@@ -1,0 +1,39 @@
+{
+  "name": "analisis-estrategico-casos",
+  "version": "4.0.0",
+  "private": true,
+  "description": "Herramienta de IA para litigación estratégica (Legislación Colombiana)",
+  "main": "index.tsx",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0 --port 3000",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 3000",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@google/genai": "^1.11.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "docx": "^8.5.0",
+    "file-saver": "^2.0.5",
+    "js-base64": "^3.7.7",
+    "jspdf": "^2.5.1",
+    "lucide-react": "^1.29.0",
+    "mammoth": "^1.7.2",
+    "motion": "^13.1.1",
+    "pdfjs-dist": "^4.4.168",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwindcss": "^4.3.3",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/file-saver": "^2.0.7",
+    "@types/node": "^20.14.2",
+    "@types/pdfjs-dist": "^2.10.377",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^6.0.1",
+    "typescript": "^5.4.5",
+    "vite": "^8.0.10"
+  }
+}
