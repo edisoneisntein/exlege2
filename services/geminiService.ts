@@ -336,7 +336,7 @@ ${contextForGenerator}
     }
 }
 
-export async function initiateVoiceTurnZero(
+export async function generateOpeningStatement(
     activeMode: 'STRATEGIC_COLLABORATOR' | 'STRATEGIC_ADVERSARY' | 'JUDGE' | 'WITNESS',
     fullResult: FullAnalysisResult
 ): Promise<string> {
