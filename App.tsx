@@ -6,7 +6,7 @@ import PageLoader from './components/PageLoader';
 import StepIndicator from './components/StepIndicator';
 import ZoomControls from './components/ZoomControls';
 import PerformanceMetrics from './components/PerformanceMetrics';
-import LandingPage from './components/LandingPage.jsx';
+import LandingPage from './components/LandingPage';
 
 // Lazy load components for code-splitting
 const EntryStep = lazy(() => import('./components/EntryStep'));
