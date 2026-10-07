@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, memo, useState } from 'react';
+import React, { lazy, Suspense, memo } from 'react';
 import { useAnalysis } from './context/AnalysisContext';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -6,7 +6,6 @@ import PageLoader from './components/PageLoader';
 import StepIndicator from './components/StepIndicator';
 import ZoomControls from './components/ZoomControls';
 import PerformanceMetrics from './components/PerformanceMetrics';
-import LandingPage from '@/components/LandingPage.tsx';
 
 // Lazy load components for code-splitting
 const EntryStep = lazy(() => import('./components/EntryStep'));
@@ -37,18 +36,8 @@ export const App: React.FC = memo(() => {
     zoomLevel,
     analysisMetrics,
   } = useAnalysis();
-  
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  const handleAuthSuccess = () => {
-    setIsAuthenticated(true);
-  };
-
-  if (!isAuthenticated) {
-    return <LandingPage onAuthSuccess={handleAuthSuccess} />;
-  }
-
-  const showStepIndicator = ['upload', 'analyzing', 'report'].includes(currentScreen) && 
+  const showStepIndicator = ['upload', 'analyzing', 'report'].includes(currentScreen) &&
     currentScreen !== 'comparative_upload' && 
     currentScreen !== 'comparative_report';
   

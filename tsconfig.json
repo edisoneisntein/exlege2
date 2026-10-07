@@ -24,6 +24,8 @@
     "**/*.jsx"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "dist",
+    "xlege-landing"
   ]
 }
