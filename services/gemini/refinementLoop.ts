@@ -64,14 +64,19 @@ const CRITIC_RESPONSE_SCHEMA = {
 };
 
 export class RefinementLoopService {
-    private ai: GoogleGenAI;
+    private _ai?: GoogleGenAI;
 
-    constructor() {
-        const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
-        if (!apiKey) {
-            throw new Error("API_KEY environment variable not set");
+    // Inicialización perezosa: el cliente (y la validación de la API key)
+    // se resuelven en el primer uso real, nunca al cargar el módulo.
+    private get ai(): GoogleGenAI {
+        if (!this._ai) {
+            const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+            if (!apiKey) {
+                throw new Error("API_KEY environment variable not set");
+            }
+            this._ai = new GoogleGenAI({ apiKey });
         }
-        this.ai = new GoogleGenAI({ apiKey });
+        return this._ai;
     }
 
     /**

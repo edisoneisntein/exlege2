@@ -36,10 +36,8 @@ export class AgenticBenchmarkSuite {
     private supervisor: SupervisorAgent;
 
     constructor() {
-        const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
-        if (!apiKey) {
-            throw new Error("API_KEY environment variable not set");
-        }
+        // SupervisorAgent valida su API key de forma perezosa (primer uso),
+        // por lo que aquí solo se crea la instancia.
         this.supervisor = new SupervisorAgent();
     }
 
