@@ -82,14 +82,36 @@ function promisifyTransaction(tx: IDBTransaction): Promise<void> {
 
 /**
  * Generates a SHA-256 hash for a given string.
+ * Falls back to a simple hash if the Web Crypto API is not available.
  * @param str The string to hash.
  * @returns A promise that resolves to the hex-encoded hash string.
  */
 async function sha256(str: string): Promise<string> {
-    const buffer = new TextEncoder().encode(str);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    // Check if the Web Crypto API is available
+    if (typeof crypto !== 'undefined' && crypto.subtle) {
+        try {
+            const buffer = new TextEncoder().encode(str);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        } catch (err) {
+            console.warn('Web Crypto API failed, falling back to simple hash:', err);
+            // Fall through to fallback
+        }
+    } else {
+        console.warn('Web Crypto API not available, falling back to simple hash for cache key generation.');
+    }
+    
+    // Fallback: simple djb2 hash -> 32-bit integer -> hex string (8 chars)
+    // Note: This is not cryptographically secure but sufficient for cache key differentiation.
+    let hash = 5381;
+    for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) + hash) + str.charCodeAt(i); // hash * 33 + c
+    }
+    // Convert to unsigned 32-bit
+    hash = hash >>> 0;
+    // Return as hex string, padded to 8 characters (32 bits)
+    return hash.toString(16).padStart(8, '0');
 }
 
 
