@@ -8,12 +8,6 @@ const RETRY_ATTEMPTS = 5;
 const INITIAL_RETRY_DELAY = 1000;
 const MODEL_FAST = 'gemini-3.5-flash';
 
-if (!process.env.API_KEY) {
-  throw new Error("API_KEY environment variable not set");
-}
-
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 
 // --- UTILITIES ---
 
@@ -23,7 +17,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
  * @returns Una promesa que se resuelve después del retraso calculado.
  */
 const exponentialBackoff = (attempt: number): Promise<void> => {
-    const delay = Math.min(INITIAL_RETRY_DELAY * Math.pow(2, attempt), 30000); 
+    const delay = Math.min(INITIAL_RETRY_DELAY * Math.pow(2, attempt), 30000);
     return new Promise(resolve => setTimeout(resolve, delay));
 };
 
@@ -40,9 +34,9 @@ export function parseJsonResponse<T>(responseText: string | undefined): T {
         if (!responseText || responseText.trim() === '') {
             throw new Error("La respuesta de la IA estaba vacía o nula.");
         }
-        
+
         let jsonString = responseText.trim();
-        
+
         const match = jsonString.match(/^```(?:json|javascript|ts|js)?\s*([\s\S]*?)\s*```$/i);
         if (match && match[1]) {
             jsonString = match[1].trim();
@@ -57,11 +51,11 @@ export function parseJsonResponse<T>(responseText: string | undefined): T {
         let inString = false;
         for (let i = 0; i < jsonString.length; i++) {
             const char = jsonString[i];
-            
+
             if (char === '"' && (i === 0 || jsonString[i - 1] !== '\\')) {
                 inString = !inString;
             }
-            
+
             if (inString && (char === '\n' || char === '\r')) {
                 sanitizedString += (char === '\n' ? '\\n' : '\\r');
             } else {
@@ -72,13 +66,13 @@ export function parseJsonResponse<T>(responseText: string | undefined): T {
 
         // 1. Remueve comas finales de objetos y arreglos.
         jsonString = jsonString.replace(/,(\s*[}\]])/g, '$1');
-        
+
         // 2. Corrige comas faltantes o mal ubicadas entre propiedades.
         jsonString = jsonString.replace(/([}\]])\s*,?\s*(")/g, '$1,$2');
 
         const parsed = JSON.parse(jsonString) as T;
         if (typeof parsed !== 'object' || parsed === null) {
-             throw new Error("El JSON parseado no es un objeto válido.");
+            throw new Error("El JSON parseado no es un objeto válido.");
         }
 
         return parsed;
@@ -120,14 +114,14 @@ export async function generateContentWithRetry(
 ): Promise<GenerateContentResponse> {
     let lastError: Error | null = null;
     const logPrefix = agentName ? `[${agentName}]` : '[Sistema de IA]';
-    
+
     const originalModel = request.model;
     const candidates = [
         'gemini-3.5-flash',
         'gemini-flash-latest',
         'gemini-3.1-flash-lite'
     ];
-    
+
     // Generamos la lista de modelos para reintentar secundariamente
     const modelsToTry: string[] = [originalModel as string];
     for (const m of candidates) {
@@ -142,25 +136,39 @@ export async function generateContentWithRetry(
 
         for (let i = 0; i < RETRY_ATTEMPTS; i++) {
             try {
-                return await ai.models.generateContent(request);
+                try {
+                    const response = await fetch('/api/gemini', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            model: request.model,
+                            contents: request.contents,
+                            ...request.config
+                        })
+                    });
+                    const data = await response.json();
+                    return { text: data.text } as GenerateContentResponse;
+                } catch (error) {
+                    throw new Error(`Error en proxy: ${error instanceof Error ? error.message : String(error)}`);
+                }
             } catch (error) {
                 lastError = error as Error;
                 const errStr = (error instanceof Error ? error.message : String(error)).toLowerCase();
-                
+
                 // Si es un error de permisos, modelo no encontrado, o argumento inválido del modelo,
                 // probamos con el siguiente modelo disponible en la lista de candidatos inmediatamente.
-                const isModelOrPermissionError = errStr.includes('permission_denied') || 
-                    errStr.includes('permission denied') || 
-                    errStr.includes('403') || 
-                    errStr.includes('not found') || 
-                    errStr.includes('not_found') || 
-                    errStr.includes('bad request') || 
+                const isModelOrPermissionError = errStr.includes('permission_denied') ||
+                    errStr.includes('permission denied') ||
+                    errStr.includes('403') ||
+                    errStr.includes('not found') ||
+                    errStr.includes('not_found') ||
+                    errStr.includes('bad request') ||
                     errStr.includes('invalid argument');
 
                 if (isModelOrPermissionError && mIndex < modelsToTry.length - 1) {
                     const nextModel = modelsToTry[mIndex + 1];
                     if (onProgress) {
-                        onProgress({ 
+                        onProgress({
                             log: `${logPrefix} Advertencia de modelo (${currentModel} falló por permisos o compatibilidad). Cambiando de forma autónoma al modelo de respaldo: ${nextModel}...`
                         });
                     }
@@ -179,7 +187,7 @@ export async function generateContentWithRetry(
 
                 if (shouldRetry) {
                     const delay = INITIAL_RETRY_DELAY * Math.pow(2, i);
-                    if (onProgress) onProgress({ 
+                    if (onProgress) onProgress({
                         log: `${logPrefix} Advertencia de API / Red (intento ${i + 1}/${RETRY_ATTEMPTS}): ${error instanceof Error ? error.message : String(error)}. Reintentando de forma autónoma en ${delay / 1000}s...`
                     });
                     await exponentialBackoff(i);
@@ -195,9 +203,9 @@ export async function generateContentWithRetry(
     }
 
     if (onProgress) onProgress({ log: `${logPrefix} Todos los reintentos y modelos de respaldo fallaron.` });
-    
+
     const finalErrStr = (lastError instanceof Error ? lastError.message : String(lastError)).toLowerCase();
-    
+
     // Tratamiento especial con instrucciones en español para el panel de AI Studio
     if (finalErrStr.includes('permission') || finalErrStr.includes('denied') || finalErrStr.includes('403')) {
         throw new Error(
@@ -206,19 +214,10 @@ export async function generateContentWithRetry(
             "Por favor, revisa y actualiza tu clave API en el panel de **Settings > Secrets** (Configuración > Secretos) en la parte superior derecha de la interfaz de AI Studio para continuar."
         );
     }
-    
+
     throw lastError || new Error("Fallo de llamada a Gemini tras probar múltiples reintentos y modelos de respaldo.");
 }
 
-/**
- * Implementa el flujo RAG para el chat en modo streaming.
- * @param query La pregunta actual del usuario.
- * @param chatHistory El historial de la conversación.
- * @param fullResult El contexto completo del caso.
- * @param activeMode La personalidad de IA activa.
- * @param selectedPersonality La personalidad específica del juez.
- * @returns Un generador asíncrono que produce fragmentos de texto de la respuesta.
- */
 export async function* generateRAGResponseStream(
     query: string,
     chatHistory: Message[],
@@ -228,7 +227,7 @@ export async function* generateRAGResponseStream(
 ): AsyncGenerator<string> {
     // 1. RETRIEVAL STEP (no-streaming)
     const retrieverPrompt = Prompts.getRagRetrieverPrompt(query, chatHistory, fullResult);
-    
+
     const retrieverResponse = await generateContentWithRetry({
         model: MODEL_FAST,
         contents: [{ role: 'user', parts: [{ text: retrieverPrompt }] }],
@@ -252,7 +251,7 @@ export async function* generateRAGResponseStream(
 
     // 2. GENERATION STEP (streaming)
     const generatorSystemInstruction = Prompts.getRagGeneratorSystemInstruction(activeMode, fullResult, selectedPersonality, null);
-    
+
     const generatorHistory = chatHistory.slice(-6).map(m => ({
         role: m.speaker === 'user' ? 'user' : 'model',
         parts: [{ text: m.text }]
@@ -262,7 +261,8 @@ export async function* generateRAGResponseStream(
         ...generatorHistory,
         {
             role: 'user',
-            parts: [{ text: `
+            parts: [{
+                text: `
 Basado en los siguientes fragmentos del expediente, responde a mi pregunta.
 
 **MI PREGUNTA:**
@@ -272,51 +272,76 @@ ${query}
 ---
 ${contextForGenerator}
 ---
-            `}]
+                `}]
         }
     ];
 
     try {
-        const stream = await ai.models.generateContentStream({
+        const response = await fetch('/api/gemini', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
             model: MODEL_FAST,
             contents: generatorContents,
             config: {
-                systemInstruction: { role: 'system', parts: [{ text: generatorSystemInstruction }] },
-                temperature: 0.6,
-            }
+              systemInstruction: { role: 'system', parts: [{ text: generatorSystemInstruction }] },
+              temperature: 0.6,
+            },
+            stream: true
+          })
         });
 
-        for await (const chunk of stream) {
-            if (chunk.text) yield chunk.text;
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() ?? '';
+
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed.startsWith('data:')) continue;
+              const payload = trimmed.slice(5).trim();
+              if (payload === '[DONE]') return;
+              try {
+                const json = JSON.parse(payload);
+                if (json.text) yield json.text;
+              } catch {
+                // Ignore parsing errors
+              }
+            }
+          }
+        } finally {
+          reader.releaseLock?.();
         }
     } catch (err) {
-        const errStr = (err instanceof Error ? err.message : String(err)).toLowerCase();
-        if (errStr.includes('permission') || errStr.includes('denied') || errStr.includes('403')) {
-            yield "\n\n**[Error del Sistema de IA]**: No se pudo establecer conexión con Gemini (Permiso Denegado / 403). Esto suele ocurrir si tu clave de la API (API Key) no es válida, ha expirado o tiene restricciones en Settings > Secrets.";
-        } else {
-            throw err;
-        }
+      const errStr = (err instanceof Error ? err.message : String(err)).toLowerCase();
+      if (errStr.includes('permission') || errStr.includes('denied') || errStr.includes('403')) {
+        yield "\n\n**[Error del Sistema de IA]**: No se pudo establecer conexión con Gemini (Permiso Denegado / 403). Esto suele ocurrir si tu clave de la API (API Key) no es válida, ha expirado o tiene restricciones en Settings > Secrets.";
+      } else {
+        throw err;
+      }
     }
 }
 
-/**
- * Genera el saludo inicial para los modos de chat que lo requieren.
- * @param activeMode El modo de IA activo.
- * @param fullResult El contexto completo del caso.
- * @returns Una promesa que se resuelve con el texto del saludo.
- */
-export async function generateOpeningStatement(
-    activeMode: 'STRATEGIC_COLLABORATOR' | 'WITNESS',
-    fullResult: FullAnalysisResult
-): Promise<string> {
     const getPromptFunction = activeMode === 'STRATEGIC_COLLABORATOR' ? Prompts.getVoiceCollaboratorPrompt : Prompts.getWitnessPrepPrompt;
     const fullPrompt = getPromptFunction(fullResult);
-    
+
     const separators = [
         "**EXPEDIENTE VIRTUAL COMPLETO (TU ÚNICA FUENTE DE VERDAD):**",
         "**EXPEDIENTE VIRTUAL COMPLETO (TU EXPEDIENTE):**"
     ];
-    
+
     let systemInstruction = fullPrompt;
     for (const separator of separators) {
         if (fullPrompt.includes(separator)) {
@@ -351,7 +376,7 @@ export async function generateOpeningStatement(
  * @returns Una promesa que se resuelve con el informe textual de la evidencia visual.
  */
 export const analyzeImageEvidence = async (fileBuffer: ArrayBuffer, mimeType: string): Promise<string> => {
-    const prompt = Prompts.getImageAnalysisPrompt(); 
+    const prompt = Prompts.getImageAnalysisPrompt();
     const base64Data = arrayBufferToBase64(fileBuffer);
 
     const response = await generateContentWithRetry({
@@ -374,36 +399,36 @@ export const analyzeImageEvidence = async (fileBuffer: ArrayBuffer, mimeType: st
  * @returns Una promesa que se resuelve con un objeto que contiene el texto sintetizado y las fuentes.
  */
 export const performWebSearch = async (query: string): Promise<{ text: string, sources: GroundingSource[] }> => {
- try {
-   const systemInstruction = Prompts.getWebSearchPrompt();
+    try {
+        const systemInstruction = Prompts.getWebSearchPrompt();
 
-   const response = await generateContentWithRetry({
-     model: MODEL_FAST,
-     contents: [{ role: 'user', parts: [{ text: query }] }],
-     config: {
-       systemInstruction: { role: 'system', parts: [{ text: systemInstruction }] },
-       temperature: 0.1,
-       tools: [{ googleSearch: {} }],
-     },
-   }, undefined, 'Investigador Web');
+        const response = await generateContentWithRetry({
+            model: MODEL_FAST,
+            contents: [{ role: 'user', parts: [{ text: query }] }],
+            config: {
+                systemInstruction: { role: 'system', parts: [{ text: systemInstruction }] },
+                temperature: 0.1,
+                tools: [{ googleSearch: {} }],
+            },
+        }, undefined, 'Investigador Web');
 
-   const text = response.text || "";
-   let sources: GroundingSource[] = [];
-   const groundingMetadata = response.candidates?.[0]?.groundingMetadata;
+        const text = response.text || "";
+        let sources: GroundingSource[] = [];
+        const groundingMetadata = response.candidates?.[0]?.groundingMetadata;
 
-   if (groundingMetadata?.groundingChunks) {
-     sources = (groundingMetadata.groundingChunks as any[]) 
-       .map(chunk => chunk.web)
-       .filter(web => web && web.uri)
-       .map(web => ({ title: web.title || web.uri, uri: web.uri }));
-   }
+        if (groundingMetadata?.groundingChunks) {
+            sources = (groundingMetadata.groundingChunks as any[])
+                .map(chunk => chunk.web)
+                .filter(web => web && web.uri)
+                .map(web => ({ title: web.title || web.uri, uri: web.uri }));
+        }
 
-   return { text, sources };
+        return { text, sources };
 
- } catch (error) {
-   console.error("Error performing web search with Gemini:", error);
-   throw new Error("La IA no pudo realizar la investigación web. Inténtelo de nuevo más tarde.");
- }
+    } catch (error) {
+        console.error("Error performing web search with Gemini:", error);
+        throw new Error("La IA no pudo realizar la investigación web. Inténtelo de nuevo más tarde.");
+    }
 };
 
 /**
@@ -437,7 +462,7 @@ export const stressTestArgument = async (
     fullResult: FullAnalysisResult
 ): Promise<ArgumentAnalysis> => {
     const systemInstruction = Prompts.getArgumentAnalysisPrompt(userArgument, fullResult);
-    
+
     const response = await generateContentWithRetry({
         model: MODEL_FAST,
         contents: "Analiza el argumento del usuario basado en las instrucciones y el contexto del caso.",
@@ -448,7 +473,7 @@ export const stressTestArgument = async (
             responseSchema: Prompts.ARGUMENT_ANALYSIS_SCHEMA
         }
     }, undefined, 'Analista de Argumentos');
-    
+
     return parseJsonResponse<ArgumentAnalysis>(response.text);
 };
 
@@ -463,7 +488,7 @@ export const stressTestDraft = async (
     fullResult: FullAnalysisResult
 ): Promise<ArgumentAnalysis> => {
     const systemInstruction = Prompts.getStressTestDraftPrompt(draftText, fullResult);
-    
+
     const response = await generateContentWithRetry({
         model: MODEL_FAST,
         contents: "Realiza el 'stress test' del borrador de documento completo basado en las instrucciones y el contexto del caso.",
@@ -474,7 +499,7 @@ export const stressTestDraft = async (
             responseSchema: Prompts.ARGUMENT_ANALYSIS_SCHEMA
         }
     }, undefined, 'Magistrado de IA (Stress Test)');
-    
+
     return parseJsonResponse<ArgumentAnalysis>(response.text);
 };
 
@@ -488,13 +513,13 @@ export const stressTestDraft = async (
  * @returns Una promesa que se resuelve con el texto del borrador generado.
  */
 export const generateStrategicDraft = async (
-    report: AnalysisReport, 
-    personality: AIPersonality, 
+    report: AnalysisReport,
+    personality: AIPersonality,
     documentType: CaseDocumentType,
     additionalConsiderations?: string
 ): Promise<string> => {
     const systemInstruction = Prompts.getDraftingPrompt(report, personality, documentType, additionalConsiderations);
-    
+
     const response = await generateContentWithRetry({
         model: MODEL_FAST,
         contents: "Redacta el borrador del documento estratégico basado en el informe integral y la personalidad legal.",
@@ -505,7 +530,7 @@ export const generateStrategicDraft = async (
             responseSchema: Prompts.DRAFT_SCHEMA
         }
     }, undefined, 'Redactor Legal');
-    
+
     const parsedJson = parseJsonResponse<{ draft_text: string }>(response.text);
     if (!parsedJson.draft_text || parsedJson.draft_text.trim().length < 50) {
         throw new Error("La IA generó un borrador vacío o incompleto. Por favor, intente de nuevo o ajuste las consideraciones adicionales.");
@@ -531,7 +556,7 @@ export const refineDraft = async (
     documentType: CaseDocumentType
 ): Promise<string> => {
     const systemInstruction = Prompts.getRefinementPrompt(report, initialDraft, stressTestResult, personality, documentType);
-    
+
     const response = await generateContentWithRetry({
         model: MODEL_FAST,
         contents: "Sintetiza toda la información y genera el documento final y mejorado basado en las instrucciones.",
@@ -542,7 +567,7 @@ export const refineDraft = async (
             responseSchema: Prompts.DRAFT_SCHEMA // Reutilizamos el schema porque la salida es similar
         }
     }, undefined, 'Editor Legal Senior');
-    
+
     const parsedJson = parseJsonResponse<{ draft_text: string }>(response.text);
     if (!parsedJson.draft_text || parsedJson.draft_text.trim().length < 50) {
         throw new Error("La IA generó un borrador refinado vacío o incompleto. Por favor, intente de nuevo.");
@@ -570,7 +595,7 @@ export const generateClientSummary = async (
             responseSchema: Prompts.CLIENT_SUMMARY_SCHEMA
         }
     }, undefined, 'Abogado Comunicador');
-    
+
     const parsedJson = parseJsonResponse<{ summary: string }>(response.text);
     return parsedJson.summary || "La IA no pudo generar un resumen. Por favor, intente de nuevo.";
 };
@@ -583,7 +608,7 @@ export const generateClientSummary = async (
  */
 export const proposeLegalActions = async (narrative: string): Promise<LegalActionProposal[]> => {
     const systemInstruction = Prompts.getLegalActionProposalPrompt(narrative);
-    
+
     const response = await generateContentWithRetry({
         model: MODEL_FAST,
         contents: "Basado en la narración de los hechos en las instrucciones, genera las propuestas de acciones legales.",
@@ -594,7 +619,7 @@ export const proposeLegalActions = async (narrative: string): Promise<LegalActio
             responseSchema: Prompts.LEGAL_ACTION_PROPOSAL_SCHEMA
         }
     }, undefined, 'Estratega Legal');
-    
+
     const parsedJson = parseJsonResponse<{ propuestas: LegalActionProposal[] }>(response.text);
     return parsedJson.propuestas || [];
 };
@@ -610,7 +635,7 @@ export const performComparativeAnalysis = async (
     documentBText: string
 ): Promise<ComparativeAnalysisReport> => {
     const systemInstruction = Prompts.getComparativeAnalysisPrompt(documentAText, documentBText);
-    
+
     const response = await generateContentWithRetry({
         model: MODEL_FAST,
         contents: "Realiza el análisis comparativo basado en los dos documentos proporcionados en las instrucciones del sistema.",
@@ -621,7 +646,7 @@ export const performComparativeAnalysis = async (
             responseSchema: Prompts.COMPARATIVE_ANALYSIS_SCHEMA
         }
     }, undefined, 'Auditor Comparativo');
-    
+
     return parseJsonResponse<ComparativeAnalysisReport>(response.text);
 };
 
@@ -636,7 +661,7 @@ export const linkInsightToCriticalPoint = async (
     criticalPoints: CriticalPoint[]
 ): Promise<string> => {
     const systemInstruction = Prompts.getLinkInsightPrompt(insightText, criticalPoints);
-    
+
     const response = await generateContentWithRetry({
         model: MODEL_FAST,
         contents: "Determina el ID del punto crítico más relevante para el insight proporcionado.",
@@ -647,7 +672,7 @@ export const linkInsightToCriticalPoint = async (
             responseSchema: Prompts.LINK_INSIGHT_SCHEMA
         }
     }, undefined, 'Clasificador de Insights');
-    
+
     const parsed = parseJsonResponse<{ linkedCriticalPointId: string }>(response.text);
     return parsed.linkedCriticalPointId;
 };
@@ -666,7 +691,7 @@ export const proposeAmendment = async (
     report: AnalysisReport,
 ): Promise<AmendmentProposal> => {
     const systemInstruction = Prompts.getProposeAmendmentPrompt(currentDraft, motion, report);
-    
+
     const response = await generateContentWithRetry({
         model: MODEL_FAST,
         contents: "Genera la propuesta de enmienda basada en la moción de refinamiento y el contexto del caso.",
@@ -677,7 +702,7 @@ export const proposeAmendment = async (
             responseSchema: Prompts.PROPOSE_AMENDMENT_SCHEMA
         }
     }, undefined, 'Redactor Quirúrgico');
-    
+
     return parseJsonResponse<AmendmentProposal>(response.text);
 };
 
@@ -730,6 +755,6 @@ export const extractTimelineEvents = async (
             responseSchema: Prompts.TIMELINE_EXTRACTION_SCHEMA
         }
     }, undefined, 'Cronista Forense');
-    
+
     return parseJsonResponse<TimelineExtractionResponse>(response.text);
 };
