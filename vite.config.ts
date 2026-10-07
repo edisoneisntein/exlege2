@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import { resolve } from 'path';
 
 export default defineConfig({
   server: {
@@ -21,9 +22,14 @@ export default defineConfig({
   build: {
     target: 'esnext'
   },
-define: {
-  'process.env': {
-    NODE_ENV: JSON.stringify(process.env.NODE_ENV || 'development')
+  resolve: {
+    alias: {
+      '@': resolve(__dirname, './src'),
+    }
+  },
+  define: {
+    'process.env': {
+      NODE_ENV: JSON.stringify(process.env.NODE_ENV || 'development')
+    }
   }
-}
 });
