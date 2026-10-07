@@ -6,6 +6,7 @@ import * as Prompts from './promptManager';
 // --- CONFIGURATION AND INITIALIZATION ---
 const RETRY_ATTEMPTS = 5;
 const INITIAL_RETRY_DELAY = 1000;
+const ai = new GoogleGenAI({ apiKey: "" });
 const MODEL_FAST = 'gemini-3.5-flash';
 
 
@@ -295,7 +296,8 @@ ${contextForGenerator}
           throw new Error(`HTTP ${response.status}`);
         }
 
-        const reader = response.body.getReader();
+        if (!response.body) throw new Error("Response body is null");
+        const reader = response.body!.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
 
@@ -334,6 +336,10 @@ ${contextForGenerator}
     }
 }
 
+export async function initiateVoiceTurnZero(
+    activeMode: 'STRATEGIC_COLLABORATOR' | 'STRATEGIC_ADVERSARY' | 'JUDGE' | 'WITNESS',
+    fullResult: FullAnalysisResult
+): Promise<string> {
     const getPromptFunction = activeMode === 'STRATEGIC_COLLABORATOR' ? Prompts.getVoiceCollaboratorPrompt : Prompts.getWitnessPrepPrompt;
     const fullPrompt = getPromptFunction(fullResult);
 
