@@ -6,7 +6,7 @@ import PageLoader from './components/PageLoader';
 import StepIndicator from './components/StepIndicator';
 import ZoomControls from './components/ZoomControls';
 import PerformanceMetrics from './components/PerformanceMetrics';
-import RootTestComponent from './RootTestComponent';
+import LandingPage from './components/LandingPage.tsx';
 
 // Lazy load components for code-splitting
 const EntryStep = lazy(() => import('./components/EntryStep'));
@@ -45,7 +45,7 @@ export const App: React.FC = memo(() => {
   };
 
   if (!isAuthenticated) {
-    return <RootTestComponent />;
+    return <LandingPage onAuthSuccess={handleAuthSuccess} />;
   }
 
   const showStepIndicator = ['upload', 'analyzing', 'report'].includes(currentScreen) && 
