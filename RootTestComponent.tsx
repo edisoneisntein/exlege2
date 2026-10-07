@@ -1,1 +1,2 @@
-export const RootTestComponent = () => <div>Root Test</div>;
+const RootTestComponent = () => <div>Root Test</div>;
+export default RootTestComponent;
