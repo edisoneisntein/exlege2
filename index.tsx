@@ -4,6 +4,7 @@ import './index.css';
 import App from './App';
 import { AnalysisProvider } from './context/AnalysisContext';
 import { UIStateProvider } from './hooks/useUIState';
+import { AuthProvider } from './context/AuthContext';
 
 const rootElement = document.getElementById('root');
 
@@ -19,7 +20,9 @@ root.render(
     <React.StrictMode>
         <UIStateProvider>
             <AnalysisProvider>
-                <App />
+                <AuthProvider>
+                    <App />
+                </AuthProvider>
             </AnalysisProvider>
         </UIStateProvider>
     </React.StrictMode>

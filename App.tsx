@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, memo } from 'react';
+import React, { lazy, Suspense, memo, useState } from 'react';
 import { useAnalysis } from './context/AnalysisContext';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -6,6 +6,7 @@ import PageLoader from './components/PageLoader';
 import StepIndicator from './components/StepIndicator';
 import ZoomControls from './components/ZoomControls';
 import PerformanceMetrics from './components/PerformanceMetrics';
+import LandingPage from './components/LandingPage';
 
 // Lazy load components for code-splitting
 const EntryStep = lazy(() => import('./components/EntryStep'));
@@ -36,11 +37,21 @@ export const App: React.FC = memo(() => {
     zoomLevel,
     analysisMetrics,
   } = useAnalysis();
+  
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  const handleAuthSuccess = () => {
+    setIsAuthenticated(true);
+  };
+
+  if (!isAuthenticated) {
+    return <LandingPage onAuthSuccess={handleAuthSuccess} />;
+  }
 
   const showStepIndicator = ['upload', 'analyzing', 'report'].includes(currentScreen) && 
     currentScreen !== 'comparative_upload' && 
     currentScreen !== 'comparative_report';
-    
+  
   const showMetricsPanel = ['analyzing', 'report'].includes(currentScreen) && analysisMetrics;
 
   const renderCurrentScreen = () => {
@@ -76,9 +87,9 @@ export const App: React.FC = memo(() => {
       <div 
         className="flex flex-col flex-grow relative z-10 transition-transform duration-300 ease-out"
         style={{
-            transform: currentScreen === 'report' ? 'none' : `scale(${zoomLevel})`,
-            transformOrigin: 'top center',
-            height: zoomLevel < 1 && currentScreen !== 'report' ? `${100 / zoomLevel}vh` : 'auto',
+          transform: currentScreen === 'report' ? 'none' : `scale(${zoomLevel})`,
+          transformOrigin: 'top center',
+          height: zoomLevel < 1 && currentScreen !== 'report' ? `${100 / zoomLevel}vh` : 'auto',
         }}
       >
         <Header />
@@ -124,7 +135,7 @@ export const App: React.FC = memo(() => {
             )}
           </div>
         </main>
-
+        
         <Footer />
         {currentScreen !== 'report' && <ZoomControls />}
       </div>
